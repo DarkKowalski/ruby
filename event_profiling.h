@@ -68,7 +68,7 @@ struct profiling_event_list
     int                tail;
     profiling_event_t *events;
 }; /* profiling_event_list_t in vm_core.h */
-;
+
 
 /* Before initialize the list for a new Ractor, acquire the lock */
 typedef struct profiling_event_bucket
