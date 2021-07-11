@@ -1584,6 +1584,7 @@ rb_ractor_main_setup(rb_vm_t *vm, rb_ractor_t *r, rb_thread_t *th)
     ractor_init(r, Qnil, Qnil);
     r->threads.main = th;
     rb_ractor_living_threads_insert(r, th);
+    ractor_init_profiling_event_list(r);
 }
 
 static VALUE
@@ -1600,7 +1601,7 @@ ractor_create(rb_execution_context_t *ec, VALUE self, VALUE loc, VALUE name, VAL
     rb_ractor_t *cr = rb_ec_ractor_ptr(ec);
     r->verbose = cr->verbose;
     r->debug = cr->debug;
-    //FIXME: ractor_init_profiling_event_list(r);
+    ractor_init_profiling_event_list(r);
 
     rb_thread_create_ractor(r, args, block);
 

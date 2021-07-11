@@ -49,11 +49,12 @@ static inline time_t microsecond_timestamp()
 
 static inline profiling_event_list_t *init_profiling_event_list()
 {
-    profiling_event_list_t *list = xmalloc(sizeof(profiling_event_list_t));
+    profiling_event_list_t *list =
+        (profiling_event_list_t *)malloc(sizeof(profiling_event_list_t));
 
-    profiling_event_t *events =
-        xmalloc(sizeof(profiling_event_t) *
-                rb_event_profiling_config->max_ractor_events);
+    profiling_event_t *events = (profiling_event_t *)malloc(
+        sizeof(profiling_event_t) *
+        rb_event_profiling_config->max_ractor_events);
 
     list->tail = 0;
     list->last_event_id = 0;
@@ -114,8 +115,8 @@ serialize_profiling_event_list(const profiling_event_list_t *list, char *buffer,
 
 static inline void destroy_profiling_event_list(profiling_event_list_t *list)
 {
-    xfree(list->events);
-    xfree(list);
+    free(list->events);
+    free(list);
 }
 
 static inline void destroy_profiling_event_bucket()
@@ -127,21 +128,18 @@ static inline void destroy_profiling_event_bucket()
             rb_profiling_event_bucket->ractor_profiling_event_lists[i]);
     }
 
-    xfree(rb_profiling_event_bucket->ractor_profiling_event_lists);
-    xfree(rb_profiling_event_bucket);
+    free(rb_profiling_event_bucket->ractor_profiling_event_lists);
+    free(rb_profiling_event_bucket);
 }
 
 static inline profiling_event_bucket_t *init_profiling_event_bucket()
 {
     profiling_event_bucket_t *bucket =
-        xmalloc(sizeof(profiling_event_bucket_t));
-    bucket->ractor_profiling_event_lists =
-        xmalloc(sizeof(profiling_event_list_t) *
-                rb_event_profiling_config->max_ractors);
-    profiling_event_list_t *main_ractor_list = init_profiling_event_list(1);
-
-    bucket->ractors = 1;
-    bucket->ractor_profiling_event_lists[0] = main_ractor_list;
+        (profiling_event_bucket_t *)malloc(sizeof(profiling_event_bucket_t));
+    bucket->ractor_profiling_event_lists = (profiling_event_list_t **)malloc(
+        sizeof(profiling_event_list_t *) *
+        rb_event_profiling_config->max_ractors);
+    bucket->ractors = 0;
 
     rb_profiling_event_bucket = bucket;
     return bucket;
@@ -155,18 +153,22 @@ static inline void serialize_profiling_event_bucket(const char *outfile)
     int total_events = get_total_events();
     int buffer_size = total_events * (event_buffer_size + json_symbol_size) +
                       json_symbol_size;
-    char *bucket_buffer = xmalloc(sizeof(char) * buffer_size);
+    char *bucket_buffer = (char *)malloc(sizeof(char) * buffer_size);
 
     /* Serialize */
     int offset = sprintf(bucket_buffer, "[");
     int ractors = rb_profiling_event_bucket->ractors;
+
     for (int i = 0; i < ractors; i++)
     {
         profiling_event_list_t *list =
             rb_profiling_event_bucket->ractor_profiling_event_lists[i];
         offset = serialize_profiling_event_list(list, bucket_buffer, offset);
     }
-    sprintf(bucket_buffer + offset - 2, "]\n"); /* Remove the last `,` */
+    if (offset > 1)
+    {
+        sprintf(bucket_buffer + offset - 2, "]\n"); /* Remove the last `,` */
+    }
 
     /* Output to a file */
     FILE *stream = fopen(outfile, "w");
@@ -264,7 +266,7 @@ event_profiling_config_t *setup_event_profiling(const int max_ractors,
                                                 const int max_ractor_events)
 {
     event_profiling_config_t *config =
-        xmalloc(sizeof(event_profiling_config_t));
+        (event_profiling_config_t *)malloc(sizeof(event_profiling_config_t));
     config->max_ractors = max_ractors;
     config->max_ractor_events = max_ractor_events;
 
@@ -279,8 +281,8 @@ void finalize_event_profiling(const char *outfile)
 {
     serialize_profiling_event_bucket(outfile);
 
-    destroy_profiling_event_bucket();
-    xfree(rb_event_profiling_config);
+    //destroy_profiling_event_bucket();
+    free(rb_event_profiling_config);
 
     rb_event_profiling_config = NULL;
     rb_profiling_event_bucket = NULL;

@@ -41,8 +41,7 @@ main(int argc, char **argv)
 #ifdef HAVE_LOCALE_H
     setlocale(LC_CTYPE, "");
 #endif
-
-    setup_event_profiling(8, 8192);
+    setup_event_profiling(32, 1024);
     int result = 1;
     ruby_sysinit(&argc, &argv);
     {
@@ -50,6 +49,7 @@ main(int argc, char **argv)
 	ruby_init();
 	result = ruby_run_node(ruby_options(argc, argv));
     }
-    finalize_event_profiling("event_profiling_out.json");
+    char outfile[] = "event_profiling_out.json";
+    finalize_event_profiling(outfile);
     return result;
 }
