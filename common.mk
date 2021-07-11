@@ -99,6 +99,7 @@ COMMONOBJS    = array.$(OBJEXT) \
 		enumerator.$(OBJEXT) \
 		error.$(OBJEXT) \
 		eval.$(OBJEXT) \
+		event_profiling.$(OBJEXT) \
 		file.$(OBJEXT) \
 		gc.$(OBJEXT) \
 		hash.$(OBJEXT) \

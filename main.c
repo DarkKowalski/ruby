@@ -30,6 +30,8 @@
 # undef RUBY_DEBUG_ENV
 #endif
 
+#include "event_profiling.h"
+
 int
 main(int argc, char **argv)
 {
@@ -40,10 +42,14 @@ main(int argc, char **argv)
     setlocale(LC_CTYPE, "");
 #endif
 
+    setup_event_profiling(8, 8192);
+    int result = 1;
     ruby_sysinit(&argc, &argv);
     {
 	RUBY_INIT_STACK;
 	ruby_init();
-	return ruby_run_node(ruby_options(argc, argv));
+	result = ruby_run_node(ruby_options(argc, argv));
     }
+    finalize_event_profiling("event_profiling_out.json");
+    return result;
 }
