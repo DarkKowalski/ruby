@@ -281,7 +281,7 @@ void finalize_event_profiling(const char *outfile)
 {
     serialize_profiling_event_bucket(outfile);
 
-    //destroy_profiling_event_bucket();
+    destroy_profiling_event_bucket();
     free(rb_event_profiling_config);
 
     rb_event_profiling_config = NULL;
