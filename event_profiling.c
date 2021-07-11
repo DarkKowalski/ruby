@@ -6,10 +6,13 @@ pid_t gettid(void) { return syscall(SYS_gettid); }
 
 /* Ruby */
 #include "ruby.h"
-#include "ruby/atomic.h"
-#include "ruby/ractor.h"
-#include "ruby/thread_native.h"
+
 #include "vm_core.h"
+
+#include "ractor_core.h"
+
+#include "ruby/atomic.h"
+#include "ruby/thread_native.h"
 
 /* Global config */
 event_profiling_config_t *rb_event_profiling_config;

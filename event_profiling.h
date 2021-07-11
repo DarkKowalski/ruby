@@ -62,12 +62,12 @@ typedef struct profiling_event
 #define PROFILING_EVENT_DEFAULT_LINE_NUMBER   __LINE__
 
 /* Allocate an event list for each Ractor */
-typedef struct profiling_event_list
+struct profiling_event_list
 {
     int                last_event_id;
     int                tail;
     profiling_event_t *events;
-} profiling_event_list_t;
+}; /* profiling_event_list_t in vm_core.h */;
 
 /* Before initialize the list for a new Ractor, acquire the lock */
 typedef struct profiling_event_bucket

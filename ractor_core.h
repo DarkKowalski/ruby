@@ -3,7 +3,6 @@
 #include "vm_core.h"
 #include "id_table.h"
 #include "vm_debug.h"
-#include "event_profiling.h"
 
 #ifndef RACTOR_CHECK_MODE
 #define RACTOR_CHECK_MODE (0 || VM_CHECK_MODE || RUBY_DEBUG)
