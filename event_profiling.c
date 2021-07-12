@@ -224,6 +224,7 @@ void debug_print_profling_event_bucket() {}
 void ractor_init_profiling_event_list(rb_ractor_t *r)
 {
     int ractor_id = r->pub.id;
+    //printf("Ractor %d init profiling event list!\n", ractor_id);
 
     RUBY_ATOMIC_INC(rb_profiling_event_bucket->ractors);
 

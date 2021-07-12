@@ -41,7 +41,7 @@ main(int argc, char **argv)
 #ifdef HAVE_LOCALE_H
     setlocale(LC_CTYPE, "");
 #endif
-    setup_event_profiling(32, 1024);
+    setup_event_profiling(1024, 1024);
     int result = 1;
     ruby_sysinit(&argc, &argv);
     {
