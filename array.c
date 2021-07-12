@@ -3647,7 +3647,6 @@ rb_ary_sort_by_bang(VALUE ary)
  *  Array#collect is an alias for Array#map.
  */
 
-#include "event_profiling.h"
 static VALUE
 rb_ary_collect(VALUE ary)
 {

@@ -1,5 +1,3 @@
-/* FIXME: remove this stub configuration */
-
 #ifndef USE_EVENT_PROFILING
 #define USE_EVENT_PROFILING 0
 #endif
@@ -27,8 +25,6 @@
 #if !defined(__GNUC__) && USE_EVENT_PROFILING
 #error "USE_EVENT_PROFILING is not supported by other than __GNUC__"
 #endif
-
-#if USE_EVENT_PROFILING
 
 /* To avoid using realloc, allocate large heap memory ahead of execution. */
 typedef struct event_profiling_config
@@ -66,20 +62,21 @@ typedef struct profiling_event
 #define PROFILING_EVENT_DEFAULT_LINE_NUMBER   __LINE__
 
 /* Allocate an event list for each Ractor */
-struct profiling_event_list
+typedef struct profiling_event_list
 {
     int                last_event_id;
     int                tail;
     profiling_event_t *events;
-}; /* profiling_event_list_t in vm_core.h */
+} profiling_event_list_t;
 
-/* Before initialize the list for a new Ractor, acquire the lock */
 typedef struct profiling_event_bucket
 {
     profiling_event_list_t * system_init_event_list;
     profiling_event_list_t **ractor_profiling_event_lists;
     int                      ractors;
 } profiling_event_bucket_t;
+
+#if USE_EVENT_PROFILING
 
 /* Global configuration */
 extern event_profiling_config_t *rb_event_profiling_config;
@@ -91,19 +88,19 @@ RUBY_SYMBOL_EXPORT_BEGIN
 event_profiling_config_t *setup_event_profiling(const int max_ractors,
                                                 const int max_ractor_events);
 void                      finalize_event_profiling(const char *outfile);
-void                      ractor_init_profiling_event_list(rb_ractor_t *r);
-int  trace_profiling_event(const char *file, const char *func, const int line,
-                           const int                     event_id,
-                           const profiling_event_phase_t phase,
-                           const bool                    system_init);
-void debug_print_profling_event_bucket();
+int trace_profiling_event(const char *file, const char *func, const int line,
+                          const int                     event_id,
+                          const profiling_event_phase_t phase,
+                          const bool                    system_init);
 RUBY_SYMBOL_EXPORT_END
 
-/* Trace functions we should use:
-   int event_id = trace_profiling_event_begin();
-   workload();
-   trace_profiling_event_end(event_id);
-*/
+void ractor_init_profiling_event_list(rb_ractor_t *r);
+void debug_print_profling_event_bucket();
+
+#define PROFILING_EVENT_DEFAULT_MAX_RACTORS       (512)
+#define PROFILING_EVENT_DEFAULT_MAX_RACTOR_EVENTS (8192 * 512)
+#define PROFILING_EVENT_DEFAULT_OUTFILE           "event_profiling_out.json"
+
 #define trace_ractor_profiling_event(event_id, phase)                          \
     trace_profiling_event(PROFILING_EVENT_DEFAULT_FILE_NAME,                   \
                           PROFILING_EVENT_DEFAULT_FUNCTION_NAME,               \
@@ -129,8 +126,6 @@ RUBY_SYMBOL_EXPORT_END
                                       PROFILING_EVENT_PHASE_BEGIN)
 #define trace_system_init_profiling_event_end(event_id)                        \
     trace_system_init_profiling_event(event_id, PROFILING_EVENT_PHASE_END)
-
-#else
 
 #endif /* USE_EVENT_PROFILING */
 

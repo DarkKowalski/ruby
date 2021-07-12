@@ -20,6 +20,7 @@
 #undef RUBY_EXPORT
 #include "ruby.h"
 #include "vm_debug.h"
+#include "event_profiling.h"
 #ifdef HAVE_LOCALE_H
 #include <locale.h>
 #endif
@@ -30,7 +31,6 @@
 #undef RUBY_DEBUG_ENV
 #endif
 
-#include "event_profiling.h"
 
 int main(int argc, char **argv)
 {
@@ -42,7 +42,7 @@ int main(int argc, char **argv)
 #endif
 
 #if USE_EVENT_PROFILING
-    setup_event_profiling(512, 8192 * 512);
+    setup_event_profiling(PROFILING_EVENT_DEFAULT_MAX_RACTORS, PROFILING_EVENT_DEFAULT_MAX_RACTOR_EVENTS);
     int id = trace_system_init_profiling_event_begin();
 #endif
 
@@ -56,7 +56,7 @@ int main(int argc, char **argv)
 
 #if USE_EVENT_PROFILING
     trace_system_init_profiling_event_end(id);
-    finalize_event_profiling("event_profiling_out.json");
+    finalize_event_profiling(PROFILING_EVENT_DEFAULT_OUTFILE);
 #endif
 
     return result;

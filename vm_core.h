@@ -936,8 +936,6 @@ struct rb_ext_config {
     bool ractor_safe;
 };
 
-/* FIXME: move this typedef? */
-typedef struct profiling_event_list profiling_event_list_t;
 typedef struct rb_ractor_struct rb_ractor_t;
 
 #if defined(__linux__) || defined(__FreeBSD__)
