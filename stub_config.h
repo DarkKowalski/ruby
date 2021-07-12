@@ -1,6 +1,0 @@
-#ifndef STUB_CONFIG_H
-
-#define USE_EVENT_PROFILING   1
-#define DEBUG_EVENT_PROFILING 1
-
-#endif

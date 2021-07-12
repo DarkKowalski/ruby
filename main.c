@@ -24,16 +24,15 @@
 #include <locale.h>
 #endif
 #if RUBY_DEVEL && !defined RUBY_DEBUG_ENV
-# define RUBY_DEBUG_ENV 1
+#define RUBY_DEBUG_ENV 1
 #endif
 #if defined RUBY_DEBUG_ENV && !RUBY_DEBUG_ENV
-# undef RUBY_DEBUG_ENV
+#undef RUBY_DEBUG_ENV
 #endif
 
 #include "event_profiling.h"
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 #ifdef RUBY_DEBUG_ENV
     ruby_set_debug_option(getenv("RUBY_DEBUG"));
@@ -41,15 +40,24 @@ main(int argc, char **argv)
 #ifdef HAVE_LOCALE_H
     setlocale(LC_CTYPE, "");
 #endif
-    setup_event_profiling(512, 8192);
+
+#if USE_EVENT_PROFILING
+    setup_event_profiling(512, 8192 * 512);
+    int id = trace_system_init_profiling_event_begin();
+#endif
+
     int result = 1;
     ruby_sysinit(&argc, &argv);
     {
-	RUBY_INIT_STACK;
-	ruby_init();
-	result = ruby_run_node(ruby_options(argc, argv));
+        RUBY_INIT_STACK;
+        ruby_init();
+        result = ruby_run_node(ruby_options(argc, argv));
     }
-    char outfile[] = "event_profiling_out.json";
-    finalize_event_profiling(outfile);
+
+#if USE_EVENT_PROFILING
+    trace_system_init_profiling_event_end(id);
+    finalize_event_profiling("event_profiling_out.json");
+#endif
+
     return result;
 }

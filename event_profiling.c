@@ -14,6 +14,19 @@ pid_t gettid(void) { return syscall(SYS_gettid); }
 #include "ruby/atomic.h"
 #include "ruby/thread_native.h"
 
+#if USE_EVENT_PROFILING
+
+/* Assertion */
+#define refute_greater_or_equal(var, compare, reason)                          \
+    do                                                                         \
+    {                                                                          \
+        if ((var) >= (compare))                                                \
+        {                                                                      \
+            fprintf(stderr, ("[ERROR] event_profling: " reason), var);         \
+            exit(1);                                                           \
+        }                                                                      \
+    } while (0)
+
 /* Global config */
 event_profiling_config_t *rb_event_profiling_config;
 
@@ -26,8 +39,8 @@ static const char profiling_event_phase_str[] = {'B', 'E'};
 /* Internal functions */
 static inline int get_total_events()
 {
+    int total = rb_profiling_event_bucket->system_init_event_list->tail;
     int ractors = rb_profiling_event_bucket->ractors;
-    int total = 0;
     for (int i = 0; i < ractors; i++)
     {
         profiling_event_list_t *list =
@@ -63,12 +76,31 @@ static inline profiling_event_list_t *init_profiling_event_list()
     return list;
 }
 
-static inline profiling_event_t *get_a_profiling_event_slot()
+static inline profiling_event_t *system_get_a_profiling_event_slot()
+{
+    profiling_event_list_t *list =
+        rb_profiling_event_bucket->system_init_event_list;
+    int index = list->tail++;
+
+    refute_greater_or_equal(index, rb_event_profiling_config->max_ractor_events,
+                            "Too many events. %d \n");
+
+    profiling_event_t *event = &(list->events[index]);
+
+    event->ractor = 0;
+
+    return event;
+}
+
+static inline profiling_event_t *ractor_get_a_profiling_event_slot()
 {
     rb_ractor_t *cr = GET_RACTOR();
 
     profiling_event_list_t *list = cr->event_profiling_storage;
     int                     index = list->tail++;
+
+    refute_greater_or_equal(index, rb_event_profiling_config->max_ractor_events,
+                            "Too many events. %d \n");
 
     profiling_event_t *event = &(list->events[index]);
     event->ractor = cr->pub.id;
@@ -76,7 +108,14 @@ static inline profiling_event_t *get_a_profiling_event_slot()
     return event;
 }
 
-static inline int get_a_new_event_id()
+static inline int system_get_a_new_event_id()
+{
+    profiling_event_list_t *list =
+        rb_profiling_event_bucket->system_init_event_list;
+    return list->last_event_id++;
+}
+
+static inline int ractor_get_a_new_event_id()
 {
     profiling_event_list_t *list = GET_RACTOR()->event_profiling_storage;
     return list->last_event_id++;
@@ -128,6 +167,7 @@ static inline void destroy_profiling_event_bucket()
             rb_profiling_event_bucket->ractor_profiling_event_lists[i]);
     }
 
+    free(rb_profiling_event_bucket->system_init_event_list);
     free(rb_profiling_event_bucket->ractor_profiling_event_lists);
     free(rb_profiling_event_bucket);
 }
@@ -136,6 +176,7 @@ static inline profiling_event_bucket_t *init_profiling_event_bucket()
 {
     profiling_event_bucket_t *bucket =
         (profiling_event_bucket_t *)malloc(sizeof(profiling_event_bucket_t));
+    bucket->system_init_event_list = init_profiling_event_list();
     bucket->ractor_profiling_event_lists = (profiling_event_list_t **)malloc(
         sizeof(profiling_event_list_t *) *
         rb_event_profiling_config->max_ractors);
@@ -159,6 +200,9 @@ static inline void serialize_profiling_event_bucket(const char *outfile)
     int offset = sprintf(bucket_buffer, "[");
     int ractors = rb_profiling_event_bucket->ractors;
 
+    offset = serialize_profiling_event_list(
+        rb_profiling_event_bucket->system_init_event_list, bucket_buffer,
+        offset);
     for (int i = 0; i < ractors; i++)
     {
         profiling_event_list_t *list =
@@ -206,6 +250,8 @@ debug_print_profling_event_list(const profiling_event_list_t *list)
 
 void debug_print_profling_event_bucket()
 {
+    debug_print_profling_event_list(
+        rb_profiling_event_bucket->system_init_event_list);
     int ractors = rb_profiling_event_bucket->ractors;
     for (int i = 0; i < ractors; i++)
     {
@@ -223,6 +269,9 @@ void ractor_init_profiling_event_list(rb_ractor_t *r)
 {
     int ractor_id = r->pub.id;
 
+    int ractors = rb_profiling_event_bucket->ractors;
+    refute_greater_or_equal(ractors, rb_event_profiling_config->max_ractors,
+                            "Too many Ractors. %d \n");
     RUBY_ATOMIC_INC(rb_profiling_event_bucket->ractors);
 
     profiling_event_list_t *list = init_profiling_event_list();
@@ -236,14 +285,25 @@ void ractor_init_profiling_event_list(rb_ractor_t *r)
 
 int trace_profiling_event(const char *file, const char *func, const int line,
                           const int                     event_id,
-                          const profiling_event_phase_t phase)
+                          const profiling_event_phase_t phase,
+                          const bool                    system_init)
 {
-    profiling_event_t *event = get_a_profiling_event_slot();
+    profiling_event_t *event = NULL;
 
-    int id =
-        (event_id == NEW_PROFILING_EVENT_ID) ? get_a_new_event_id() : event_id;
-
-    /* Ractor ID is assigned in get_a_profiling_event_slot()*/
+    int id = -1;
+    if (system_init)
+    {
+        event = system_get_a_profiling_event_slot();
+        id = (event_id == NEW_PROFILING_EVENT_ID) ? system_get_a_new_event_id()
+                                                  : event_id;
+    }
+    else
+    {
+        event = ractor_get_a_profiling_event_slot();
+        id = (event_id == NEW_PROFILING_EVENT_ID) ? ractor_get_a_new_event_id()
+                                                  : event_id;
+        /* Ractor ID is assigned in ractor_get_a_profiling_event_slot()*/
+    }
 
     event->file = (char *)file;
     event->function = (char *)func;
@@ -285,3 +345,5 @@ void finalize_event_profiling(const char *outfile)
     rb_event_profiling_config = NULL;
     rb_profiling_event_bucket = NULL;
 }
+
+#endif /* USE_EVENT_PROFILING */

@@ -3651,7 +3651,6 @@ rb_ary_sort_by_bang(VALUE ary)
 static VALUE
 rb_ary_collect(VALUE ary)
 {
-    int id = trace_profiling_event_begin();
     long i;
     VALUE collect;
 
@@ -3660,7 +3659,6 @@ rb_ary_collect(VALUE ary)
     for (i = 0; i < RARRAY_LEN(ary); i++) {
         rb_ary_push(collect, rb_yield(RARRAY_AREF(ary, i)));
     }
-    trace_profiling_event_end(id);
     return collect;
 }
 
