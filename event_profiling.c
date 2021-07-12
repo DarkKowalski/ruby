@@ -165,10 +165,8 @@ static inline void serialize_profiling_event_bucket(const char *outfile)
             rb_profiling_event_bucket->ractor_profiling_event_lists[i];
         offset = serialize_profiling_event_list(list, bucket_buffer, offset);
     }
-    if (offset > 1)
-    {
-        sprintf(bucket_buffer + offset - 2, "]\n"); /* Remove the last `,` */
-    }
+    int final_offset = (offset > 1) ? offset - 2 : 1;
+    sprintf(bucket_buffer + final_offset, "]\n"); /* Remove the last `,` */
 
     /* Output to a file */
     FILE *stream = fopen(outfile, "w");
@@ -224,7 +222,6 @@ void debug_print_profling_event_bucket() {}
 void ractor_init_profiling_event_list(rb_ractor_t *r)
 {
     int ractor_id = r->pub.id;
-    //printf("Ractor %d init profiling event list!\n", ractor_id);
 
     RUBY_ATOMIC_INC(rb_profiling_event_bucket->ractors);
 

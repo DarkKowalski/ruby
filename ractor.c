@@ -1582,9 +1582,9 @@ rb_ractor_main_setup(rb_vm_t *vm, rb_ractor_t *r, rb_thread_t *th)
     r->pub.self = TypedData_Wrap_Struct(rb_cRactor, &ractor_data_type, r);
     FL_SET_RAW(r->pub.self, RUBY_FL_SHAREABLE);
     ractor_init(r, Qnil, Qnil);
+    ractor_init_profiling_event_list(r);
     r->threads.main = th;
     rb_ractor_living_threads_insert(r, th);
-    ractor_init_profiling_event_list(r);
 }
 
 static VALUE
