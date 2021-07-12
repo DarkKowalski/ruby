@@ -1,5 +1,5 @@
 #ifndef USE_EVENT_PROFILING
-#define USE_EVENT_PROFILING 0
+#define USE_EVENT_PROFILING 1
 #endif
 
 #ifndef DEBUG_EVENT_PROFILING
@@ -8,6 +8,8 @@
 
 #ifndef RUBY_EVENT_PROFILING_H
 #define RUBY_EVENT_PROFILING_H 1
+
+#if USE_EVENT_PROFILING
 
 #include "ruby/internal/config.h"
 
@@ -75,8 +77,6 @@ typedef struct profiling_event_bucket
     profiling_event_list_t **ractor_profiling_event_lists;
     int                      ractors;
 } profiling_event_bucket_t;
-
-#if USE_EVENT_PROFILING
 
 /* Global configuration */
 extern event_profiling_config_t *rb_event_profiling_config;
