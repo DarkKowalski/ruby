@@ -1,11 +1,11 @@
 #include "event_profiling.h"
 
 /* Ruby */
-#include "ruby.h"
-#include "vm_core.h"
 #include "ractor_core.h"
+#include "ruby.h"
 #include "ruby/atomic.h"
 #include "ruby/thread_native.h"
+#include "vm_core.h"
 
 #if USE_EVENT_PROFILING
 
@@ -19,7 +19,7 @@ pid_t gettid(void) { return syscall(SYS_gettid); }
     {                                                                          \
         if ((var) >= (compare))                                                \
         {                                                                      \
-            fprintf(stderr, ("[ERROR] event_profling: " reason), var);         \
+            fprintf(stderr, ("[ERROR] event_profiling: " reason), var);        \
             exit(1);                                                           \
         }                                                                      \
     } while (0)
@@ -31,7 +31,7 @@ event_profiling_config_t *rb_event_profiling_config;
 profiling_event_bucket_t *rb_profiling_event_bucket;
 
 /* Phase strings */
-static const char profiling_event_phase_str[] = {'B', 'E'};
+static const char profiling_event_phase_str[] = {'B', 'E', 'O'};
 
 /* Internal functions */
 static inline int get_total_events()
@@ -122,17 +122,48 @@ static inline int serialize_profiling_event(const profiling_event_t *event,
                                             char *buffer, const int offset)
 {
     char *event_buffer = buffer + offset;
+    int   count = -1;
 
-    return sprintf(event_buffer,
-                   "{\"name\": \"%s:%s(%d)\",\n"
-                   "\"ph\":\"%c\",\n"
-                   "\"pid\":\"%i\",\n"
-                   "\"tid\":\"%i\",\n"
-                   "\"ts\":\"%ld\",\n"
-                   "\"args\": {\"line\": \"%d\", \"ractor\":\"%d\"}},\n",
-                   event->file, event->function, event->id,
-                   profiling_event_phase_str[event->phase], event->pid,
-                   event->tid, event->timestamp, event->line, event->ractor);
+    switch (event->phase)
+    {
+    case PROFILING_EVENT_PHASE_SNAPSHOT:
+        count = sprintf(event_buffer,
+                        "{\"name\": \"snapshot-%d\",\n"
+                        "\"id\":\"%d(%d)\",\n"
+                        "\"ph\":\"%c\",\n"
+                        "\"pid\":\"%i\",\n"
+                        "\"tid\":\"%i\",\n"
+                        "\"ts\":\"%ld\",\n"
+                        "\"args\": {\"snapshot\":{\"name\": \"%s:%s(%d)\", "
+                        "\"line\": \"%d\", "
+                        "\"ractor\":\"%d\",\"reason\": \"%s\"}}},\n",
+                        event->tid, event->tid, event->id,
+                        profiling_event_phase_str[event->phase], event->pid,
+                        event->tid, event->timestamp, event->file,
+                        event->function, event->id, event->line, event->ractor,
+                        event->snapshot_reason);
+        break;
+    case PROFILING_EVENT_PHASE_BEGIN:
+    case PROFILING_EVENT_PHASE_END:
+        count =
+            sprintf(event_buffer,
+                    "{\"name\": \"%s:%s(%d)\",\n"
+                    "\"ph\":\"%c\",\n"
+                    "\"pid\":\"%i\",\n"
+                    "\"tid\":\"%i\",\n"
+                    "\"ts\":%ld,\n"
+                    "\"args\": {\"line\": \"%d\", \"ractor\":\"%d\"}},\n",
+                    event->file, event->function, event->id,
+                    profiling_event_phase_str[event->phase], event->pid,
+                    event->tid, event->timestamp, event->line, event->ractor);
+        break;
+    default:
+        fprintf(stderr, "[ERROR] event_profiling: unknown phase %d\n",
+                event->phase);
+        count = 0;
+    }
+
+    return count;
 }
 
 static inline int
@@ -283,7 +314,7 @@ void ractor_init_profiling_event_list(rb_ractor_t *r)
 int trace_profiling_event(const char *file, const char *func, const int line,
                           const int                     event_id,
                           const profiling_event_phase_t phase,
-                          const bool                    system_init)
+                          const char *snapshot_reason, const bool system_init)
 {
     profiling_event_t *event = NULL;
 
@@ -311,6 +342,8 @@ int trace_profiling_event(const char *file, const char *func, const int line,
 
     event->pid = getpid();
     event->tid = gettid();
+
+    event->snapshot_reason = (char *)snapshot_reason;
 
     event->timestamp = microsecond_timestamp();
 

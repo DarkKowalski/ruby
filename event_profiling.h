@@ -40,6 +40,7 @@ typedef enum profiling_event_phase
 {
     PROFILING_EVENT_PHASE_BEGIN,
     PROFILING_EVENT_PHASE_END,
+    PROFILING_EVENT_PHASE_SNAPSHOT,
 } profiling_event_phase_t;
 
 typedef struct profiling_event
@@ -55,6 +56,8 @@ typedef struct profiling_event
     pid_t tid;
 
     profiling_event_phase_t phase;
+
+    char *snapshot_reason;
 
     time_t timestamp;
 } profiling_event_t;
@@ -91,49 +94,59 @@ void                      finalize_event_profiling(const char *outfile);
 int trace_profiling_event(const char *file, const char *func, const int line,
                           const int                     event_id,
                           const profiling_event_phase_t phase,
-                          const bool                    system_init);
+                          const char *snapshot_reason, const bool system_init);
 RUBY_SYMBOL_EXPORT_END
 
 void ractor_init_profiling_event_list(rb_ractor_t *r);
 void debug_print_profling_event_bucket();
 
 /* Internal marcos */
-#define trace_ractor_profiling_event(event_id, phase)                          \
+#define trace_ractor_profiling_event(event_id, phase, snapshot_reason)         \
     trace_profiling_event(PROFILING_EVENT_DEFAULT_FILE_NAME,                   \
                           PROFILING_EVENT_DEFAULT_FUNCTION_NAME,               \
                           PROFILING_EVENT_DEFAULT_LINE_NUMBER, event_id,       \
-                          phase, false)
+                          phase, snapshot_reason, false)
 
-#define trace_system_init_profiling_event(event_id, phase)                     \
+#define trace_system_init_profiling_event(event_id, phase, snapshot_reason)    \
     trace_profiling_event(PROFILING_EVENT_DEFAULT_FILE_NAME,                   \
                           PROFILING_EVENT_DEFAULT_FUNCTION_NAME,               \
                           PROFILING_EVENT_DEFAULT_LINE_NUMBER, event_id,       \
-                          phase, true)
+                          phase, snapshot_reason, true)
 
 #define NEW_PROFILING_EVENT_ID (-1) /* Return a new event_id */
 
 #define trace_ractor_profiling_event_begin()                                   \
     trace_ractor_profiling_event(NEW_PROFILING_EVENT_ID,                       \
-                                 PROFILING_EVENT_PHASE_BEGIN)
+                                 PROFILING_EVENT_PHASE_BEGIN, NULL)
 #define trace_ractor_profiling_event_end(event_id)                             \
-    trace_ractor_profiling_event(event_id, PROFILING_EVENT_PHASE_END)
+    trace_ractor_profiling_event(event_id, PROFILING_EVENT_PHASE_END, NULL)
+#define trace_ractor_profiling_event_snapshot(reason)                          \
+    trace_ractor_profiling_event(NEW_PROFILING_EVENT_ID,                       \
+                                 PROFILING_EVENT_PHASE_SNAPSHOT, reason)
 
 #define trace_system_init_profiling_event_begin()                              \
     trace_system_init_profiling_event(NEW_PROFILING_EVENT_ID,                  \
-                                      PROFILING_EVENT_PHASE_BEGIN)
+                                      PROFILING_EVENT_PHASE_BEGIN, NULL)
 #define trace_system_init_profiling_event_end(event_id)                        \
-    trace_system_init_profiling_event(event_id, PROFILING_EVENT_PHASE_END)
+    trace_system_init_profiling_event(event_id, PROFILING_EVENT_PHASE_END, NULL)
+#define trace_system_init_profiling_event_snapshot(reason)                     \
+    trace_system_init_profiling_event(NEW_PROFILING_EVENT_ID,                  \
+                                      PROFILING_EVENT_PHASE_SNAPSHOT, reason)
 
 /* Public marcos */
 #define RB_EVENT_PROFILING_BEGIN()                                             \
     int ractor_profiling_event_id = trace_ractor_profiling_event_begin()
 #define RB_EVENT_PROFILING_END()                                               \
     trace_ractor_profiling_event_end(ractor_profiling_event_id)
+#define RB_EVENT_PROFILING_SNAPSHOT(reason)                                    \
+    trace_ractor_profiling_event_snapshot(reason)
 
 #define RB_SYSTEM_EVENT_PROFILING_BEGIN()                                      \
     int system_profiling_event_id = trace_system_init_profiling_event_begin()
 #define RB_SYSTEM_EVENT_PROFILING_END()                                        \
     trace_system_init_profiling_event_end(system_profiling_event_id)
+#define RB_SYSTEM_EVENT_PROFILING_SNAPSHOT(reason)                             \
+    trace_system_init_profiling_event_snapshot(reason)
 
 #define RB_EVENT_PROFILING_DEFAULT_MAX_RACTORS       (512)
 #define RB_EVENT_PROFILING_DEFAULT_MAX_RACTOR_EVENTS (8192 * 512)
@@ -142,7 +155,7 @@ void debug_print_profling_event_bucket();
 #define RB_SETUP_EVENT_PROFILING(max_ractors, max_ractor_events)               \
     setup_event_profiling(max_ractors, max_ractor_events)
 #define RB_SETUP_EVENT_PROFILING_DEFAULT()                                     \
-    setup_event_profiling(RB_EVENT_PROFILING_DEFAULT_MAX_RACTORS,                 \
+    setup_event_profiling(RB_EVENT_PROFILING_DEFAULT_MAX_RACTORS,              \
                           RB_EVENT_PROFILING_DEFAULT_MAX_RACTOR_EVENTS)
 #define RB_FINALIZE_EVENT_PROFILING(outfile) finalize_event_profiling(outfile)
 #define RB_FINALIZE_EVENT_PROFILING_DEFAULT()                                  \
@@ -152,8 +165,10 @@ void debug_print_profling_event_bucket();
 
 #define RB_EVENT_PROFILING_BEGIN()
 #define RB_EVENT_PROFILING_END()
+#define RB_EVENT_PROFILING_SNAPSHOT(reason)
 #define RB_SYSTEM_EVENT_PROFILING_BEGIN()
 #define RB_SYSTEM_EVENT_PROFILING_END()
+#define RB_SYSTEM_EVENT_PROFILING_SNAPSHOT(reason)
 #define RB_SETUP_EVENT_PROFILING_DEFAULT()
 #define RB_FINALIZE_EVENT_PROFILING_DEFAULT()
 
