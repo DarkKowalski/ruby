@@ -45,12 +45,14 @@ int main(int argc, char **argv)
     {
         RB_SETUP_EVENT_PROFILING_DEFAULT();
         RB_SYSTEM_EVENT_PROFILING_BEGIN();
+
         RUBY_INIT_STACK;
         ruby_init();
-        int ret = 1;
-        ret = ruby_run_node(ruby_options(argc, argv));
+        int ret = ruby_run_node(ruby_options(argc, argv));
+
         RB_SYSTEM_EVENT_PROFILING_END();
         RB_FINALIZE_EVENT_PROFILING_DEFAULT();
+
         return ret;
     }
 }
