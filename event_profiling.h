@@ -97,10 +97,7 @@ RUBY_SYMBOL_EXPORT_END
 void ractor_init_profiling_event_list(rb_ractor_t *r);
 void debug_print_profling_event_bucket();
 
-#define PROFILING_EVENT_DEFAULT_MAX_RACTORS       (512)
-#define PROFILING_EVENT_DEFAULT_MAX_RACTOR_EVENTS (8192 * 512)
-#define PROFILING_EVENT_DEFAULT_OUTFILE           "event_profiling_out.json"
-
+/* Internal marcos */
 #define trace_ractor_profiling_event(event_id, phase)                          \
     trace_profiling_event(PROFILING_EVENT_DEFAULT_FILE_NAME,                   \
                           PROFILING_EVENT_DEFAULT_FUNCTION_NAME,               \
@@ -126,6 +123,39 @@ void debug_print_profling_event_bucket();
                                       PROFILING_EVENT_PHASE_BEGIN)
 #define trace_system_init_profiling_event_end(event_id)                        \
     trace_system_init_profiling_event(event_id, PROFILING_EVENT_PHASE_END)
+
+/* Public marcos */
+#define RB_EVENT_PROFILING_BEGIN()                                             \
+    int ractor_profiling_event_id = trace_ractor_profiling_event_begin()
+#define RB_EVENT_PROFILING_END()                                               \
+    trace_ractor_profiling_event_end(ractor_profiling_event_id)
+
+#define RB_SYSTEM_EVENT_PROFILING_BEGIN()                                      \
+    int system_profiling_event_id = trace_system_init_profiling_event_begin()
+#define RB_SYSTEM_EVENT_PROFILING_END()                                        \
+    trace_system_init_profiling_event_end(system_profiling_event_id)
+
+#define RB_EVENT_PROFILING_DEFAULT_MAX_RACTORS       (512)
+#define RB_EVENT_PROFILING_DEFAULT_MAX_RACTOR_EVENTS (8192 * 512)
+#define RB_EVENT_PROFILING_DEFAULT_OUTFILE           "event_profiling_out.json"
+
+#define RB_SETUP_EVENT_PROFILING(max_ractors, max_ractor_events)               \
+    setup_event_profiling(max_ractors, max_ractor_events)
+#define RB_SETUP_EVENT_PROFILING_DEFAULT()                                     \
+    setup_event_profiling(RB_EVENT_PROFILING_DEFAULT_MAX_RACTORS,                 \
+                          RB_EVENT_PROFILING_DEFAULT_MAX_RACTOR_EVENTS)
+#define RB_FINALIZE_EVENT_PROFILING(outfile) finalize_event_profiling(outfile)
+#define RB_FINALIZE_EVENT_PROFILING_DEFAULT()                                  \
+    finalize_event_profiling(RB_EVENT_PROFILING_DEFAULT_OUTFILE)
+
+#else
+
+#define RB_EVENT_PROFILING_BEGIN()
+#define RB_EVENT_PROFILING_END()
+#define RB_SYSTEM_EVENT_PROFILING_BEGIN()
+#define RB_SYSTEM_EVENT_PROFILING_END()
+#define RB_SETUP_EVENT_PROFILING_DEFAULT()
+#define RB_FINALIZE_EVENT_PROFILING_DEFAULT()
 
 #endif /* USE_EVENT_PROFILING */
 

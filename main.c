@@ -41,23 +41,16 @@ int main(int argc, char **argv)
     setlocale(LC_CTYPE, "");
 #endif
 
-#if USE_EVENT_PROFILING
-    setup_event_profiling(PROFILING_EVENT_DEFAULT_MAX_RACTORS, PROFILING_EVENT_DEFAULT_MAX_RACTOR_EVENTS);
-    int id = trace_system_init_profiling_event_begin();
-#endif
-
-    int result = 1;
     ruby_sysinit(&argc, &argv);
     {
+        RB_SETUP_EVENT_PROFILING_DEFAULT();
+        RB_SYSTEM_EVENT_PROFILING_BEGIN();
         RUBY_INIT_STACK;
         ruby_init();
-        result = ruby_run_node(ruby_options(argc, argv));
+        int ret = 1;
+        ret = ruby_run_node(ruby_options(argc, argv));
+        RB_SYSTEM_EVENT_PROFILING_END();
+        RB_FINALIZE_EVENT_PROFILING_DEFAULT();
+        return ret;
     }
-
-#if USE_EVENT_PROFILING
-    trace_system_init_profiling_event_end(id);
-    finalize_event_profiling(PROFILING_EVENT_DEFAULT_OUTFILE);
-#endif
-
-    return result;
 }

@@ -1,20 +1,17 @@
 #include "event_profiling.h"
 
-/* GCC warning */
-#include <sys/syscall.h>
-pid_t gettid(void) { return syscall(SYS_gettid); }
-
 /* Ruby */
 #include "ruby.h"
-
 #include "vm_core.h"
-
 #include "ractor_core.h"
-
 #include "ruby/atomic.h"
 #include "ruby/thread_native.h"
 
 #if USE_EVENT_PROFILING
+
+/* GCC warning */
+#include <sys/syscall.h>
+pid_t gettid(void) { return syscall(SYS_gettid); }
 
 /* Assertion */
 #define refute_greater_or_equal(var, compare, reason)                          \
