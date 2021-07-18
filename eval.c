@@ -37,6 +37,7 @@
 #include "ruby/vm.h"
 #include "vm_core.h"
 #include "ractor_core.h"
+#include "event_profiling.h"
 
 NORETURN(static void rb_raise_jump(VALUE, VALUE));
 void rb_ec_clear_current_thread_trace_func(const rb_execution_context_t *ec);
@@ -900,6 +901,8 @@ rb_make_exception(int argc, const VALUE *argv)
 static void
 rb_raise_jump(VALUE mesg, VALUE cause)
 {
+    RB_EVENT_PROFILING_EXCEPTION();
+
     rb_execution_context_t *ec = GET_EC();
     const rb_control_frame_t *cfp = ec->cfp;
     const rb_callable_method_entry_t *me = rb_vm_frame_method_entry(cfp);

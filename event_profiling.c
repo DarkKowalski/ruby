@@ -66,55 +66,55 @@ static inline profiling_event_list_t *init_profiling_event_list()
         sizeof(profiling_event_t) *
         rb_event_profiling_config->max_ractor_events);
 
+    int *event_indexes = (int *)malloc(
+        sizeof(int) * rb_event_profiling_config->max_call_stack_depth);
+
     list->tail = 0;
     list->last_event_id = 0;
     list->events = events;
 
+    list->call_stack.top = 0;
+    list->call_stack.event_indexes = event_indexes;
+
     return list;
 }
 
-static inline profiling_event_t *system_get_a_profiling_event_slot()
+static inline profiling_event_list_t *
+select_profiling_event_list(const bool system)
 {
-    profiling_event_list_t *list =
-        rb_profiling_event_bucket->system_init_event_list;
-    int index = list->tail++;
-
-    refute_greater_or_equal(index, rb_event_profiling_config->max_ractor_events,
-                            "Too many events. %d \n");
-
-    profiling_event_t *event = &(list->events[index]);
-
-    event->ractor = 0;
-
-    return event;
+    if (system)
+    {
+        return rb_profiling_event_bucket->system_init_event_list;
+    }
+    else
+    {
+        return GET_RACTOR()->event_profiling_storage;
+    }
 }
 
-static inline profiling_event_t *ractor_get_a_profiling_event_slot()
+static inline profiling_event_t *get_a_profiling_event_slot(const bool system,
+                                                            int *ret_index)
 {
-    rb_ractor_t *cr = GET_RACTOR();
-
-    profiling_event_list_t *list = cr->event_profiling_storage;
+    profiling_event_list_t *list = select_profiling_event_list(system);
     int                     index = list->tail++;
 
     refute_greater_or_equal(index, rb_event_profiling_config->max_ractor_events,
                             "Too many events. %d \n");
 
     profiling_event_t *event = &(list->events[index]);
-    event->ractor = cr->pub.id;
 
+    event->ractor = system ? 0 : GET_RACTOR()->pub.id;
+
+    if (ret_index != NULL)
+    {
+        *ret_index = index;
+    }
     return event;
 }
 
-static inline int system_get_a_new_event_id()
+static inline int get_a_new_event_id(const bool system)
 {
-    profiling_event_list_t *list =
-        rb_profiling_event_bucket->system_init_event_list;
-    return list->last_event_id++;
-}
-
-static inline int ractor_get_a_new_event_id()
-{
-    profiling_event_list_t *list = GET_RACTOR()->event_profiling_storage;
+    profiling_event_list_t *list = select_profiling_event_list(system);
     return list->last_event_id++;
 }
 
@@ -183,6 +183,7 @@ serialize_profiling_event_list(const profiling_event_list_t *list, char *buffer,
 static inline void destroy_profiling_event_list(profiling_event_list_t *list)
 {
     free(list->events);
+    free(list->call_stack.event_indexes);
     free(list);
 }
 
@@ -248,6 +249,36 @@ static inline void serialize_profiling_event_bucket(const char *outfile)
     free(bucket_buffer);
 }
 
+static inline int push_call_stack(const int index, const bool system)
+{
+    profiling_event_list_t *list = select_profiling_event_list(system);
+
+    refute_greater_or_equal(list->call_stack.top,
+                            rb_event_profiling_config->max_call_stack_depth,
+                            "Too deep call stack %d\n");
+    int i = list->call_stack.top++;
+
+    list->call_stack.event_indexes[i] = index;
+    return index;
+}
+
+static inline profiling_event_t *pop_call_stack(const bool system)
+{
+    profiling_event_list_t *list = select_profiling_event_list(system);
+
+    int i = --(list->call_stack.top);
+    int index = list->call_stack.event_indexes[i];
+
+    profiling_event_t *event = &(list->events[index]);
+    return event;
+}
+
+static bool call_stack_empty(const bool system)
+{
+    profiling_event_list_t *list = select_profiling_event_list(system);
+    return list->call_stack.top == 0;
+}
+
 /* Internal debugging facilities */
 #if DEBUG_EVENT_PROFILING
 static inline void debug_print_profling_event(const profiling_event_t *event)
@@ -311,52 +342,100 @@ void ractor_init_profiling_event_list(rb_ractor_t *r)
         list;
 }
 
-int trace_profiling_event(const char *file, const char *func, const int line,
-                          const int                     event_id,
-                          const profiling_event_phase_t phase,
-                          const char *snapshot_reason, const bool system_init)
+int trace_profiling_event_begin(const char *file, const char *func,
+                                const int line, const bool system)
 {
-    profiling_event_t *event = NULL;
+    int                index = -1;
+    profiling_event_t *event = get_a_profiling_event_slot(system, &index);
 
-    int id = -1;
-    if (system_init)
-    {
-        event = system_get_a_profiling_event_slot();
-        id = (event_id == NEW_PROFILING_EVENT_ID) ? system_get_a_new_event_id()
-                                                  : event_id;
-    }
-    else
-    {
-        event = ractor_get_a_profiling_event_slot();
-        id = (event_id == NEW_PROFILING_EVENT_ID) ? ractor_get_a_new_event_id()
-                                                  : event_id;
-        /* Ractor ID is assigned in ractor_get_a_profiling_event_slot()*/
-    }
+    /* Track this event */
+    push_call_stack(index, system);
+
+    int id = get_a_new_event_id(system);
 
     event->file = (char *)file;
     event->function = (char *)func;
     event->line = line;
     event->id = id;
-
-    event->phase = phase;
-
+    event->phase = PROFILING_EVENT_PHASE_BEGIN;
     event->pid = getpid();
     event->tid = gettid();
+    event->snapshot_reason = NULL;
+    event->timestamp = microsecond_timestamp();
 
-    event->snapshot_reason = (char *)snapshot_reason;
+    return id;
+}
 
+int trace_profiling_event_end(const char *file, const char *func,
+                              const int line, const bool system)
+{
+    profiling_event_t *event = get_a_profiling_event_slot(system, NULL);
+
+    profiling_event_t *begin = pop_call_stack(system);
+    int                id = begin->id;
+
+    event->file = (char *)file;
+    event->function = (char *)func;
+    event->line = line;
+    event->id = id;
+    event->phase = PROFILING_EVENT_PHASE_END;
+    event->pid = begin->pid;
+    event->tid = begin->tid;
+    event->snapshot_reason = NULL;
+    event->timestamp = microsecond_timestamp();
+
+    return id;
+}
+
+void trace_profiling_event_exception(const bool system)
+{
+    while (!call_stack_empty(system))
+    {
+        profiling_event_t *event = get_a_profiling_event_slot(system, NULL);
+
+        profiling_event_t *begin = pop_call_stack(system);
+
+        event->file = begin->file;
+        event->function = begin->function;
+        event->line = -1;
+        event->id = begin->id;
+        event->phase = PROFILING_EVENT_PHASE_END;
+        event->pid = begin->pid;
+        event->tid = begin->tid;
+        event->snapshot_reason = NULL;
+        event->timestamp = microsecond_timestamp();
+    }
+}
+
+int trace_profiling_event_snapshot(const char *file, const char *func,
+                                   const int line, const char *reason,
+                                   bool system)
+{
+    profiling_event_t *event = get_a_profiling_event_slot(system, NULL);
+    int                id = get_a_new_event_id(system);
+
+    event->file = (char *)file;
+    event->function = (char *)func;
+    event->line = line;
+    event->id = id;
+    event->phase = PROFILING_EVENT_PHASE_SNAPSHOT;
+    event->pid = getpid();
+    event->tid = gettid();
+    event->snapshot_reason = (char *)reason;
     event->timestamp = microsecond_timestamp();
 
     return id;
 }
 
 event_profiling_config_t *setup_event_profiling(const int max_ractors,
-                                                const int max_ractor_events)
+                                                const int max_ractor_events,
+                                                const int max_call_stack_depth)
 {
     event_profiling_config_t *config =
         (event_profiling_config_t *)malloc(sizeof(event_profiling_config_t));
     config->max_ractors = max_ractors;
     config->max_ractor_events = max_ractor_events;
+    config->max_call_stack_depth = max_call_stack_depth;
 
     rb_event_profiling_config = config;
 
