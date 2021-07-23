@@ -1077,10 +1077,6 @@ struct waitpid_state {
     int errnum;
 };
 
-void rb_native_mutex_lock(rb_nativethread_lock_t *);
-void rb_native_mutex_unlock(rb_nativethread_lock_t *);
-void rb_native_cond_signal(rb_nativethread_cond_t *);
-void rb_native_cond_wait(rb_nativethread_cond_t *, rb_nativethread_lock_t *);
 int rb_sigwait_fd_get(const rb_thread_t *);
 void rb_sigwait_sleep(const rb_thread_t *, int fd, const rb_hrtime_t *);
 void rb_sigwait_fd_put(const rb_thread_t *, int fd);
@@ -4293,8 +4289,10 @@ rb_fork_ruby(int *status)
         after_fork_ruby();
 	disable_child_handler_fork_parent(&old); /* yes, bad name */
         if (mjit_enabled && pid > 0) mjit_resume(); /* child (pid == 0) is cared by rb_thread_atfork */
-	if (pid >= 0) /* fork succeed */
+	if (pid >= 0) { /* fork succeed */
+            if (pid == 0) rb_thread_atfork();
 	    return pid;
+        }
 	/* fork failed */
 	if (handle_fork_error(err, status, NULL, &try_gc))
 	    return -1;
@@ -4336,7 +4334,6 @@ rb_f_fork(VALUE obj)
 
     switch (pid = rb_fork_ruby(NULL)) {
       case 0:
-	rb_thread_atfork();
 	if (rb_block_given_p()) {
 	    int status;
 	    rb_protect(rb_yield, Qundef, &status);
@@ -7012,7 +7009,7 @@ rb_daemon(int nochdir, int noclose)
 #define fork_daemon() \
     switch (rb_fork_ruby(NULL)) { \
       case -1: return -1; \
-      case 0:  rb_thread_atfork(); break; \
+      case 0:  break; \
       default: _exit(EXIT_SUCCESS); \
     }
 

@@ -1027,13 +1027,7 @@ rb_proc_call_with_block_kw(VALUE self, int argc, const VALUE *argv, VALUE passed
 VALUE
 rb_proc_call_with_block(VALUE self, int argc, const VALUE *argv, VALUE passed_procval)
 {
-    rb_execution_context_t *ec = GET_EC();
-    VALUE vret;
-    rb_proc_t *proc;
-    GetProcPtr(self, proc);
-    vret = rb_vm_invoke_proc(ec, proc, argc, argv, RB_NO_KEYWORDS, proc_to_block_handler(passed_procval));
-    RB_GC_GUARD(self);
-    return vret;
+    return rb_proc_call_with_block_kw(self, argc, argv, passed_procval, RB_NO_KEYWORDS);
 }
 
 
@@ -3153,18 +3147,6 @@ method_inspect(VALUE method)
 }
 
 static VALUE
-mproc(VALUE method)
-{
-    return rb_funcallv(rb_mRubyVMFrozenCore, idProc, 0, 0);
-}
-
-static VALUE
-mlambda(VALUE method)
-{
-    return rb_funcallv(rb_mRubyVMFrozenCore, idLambda, 0, 0);
-}
-
-static VALUE
 bmcall(RB_BLOCK_CALL_FUNC_ARGLIST(args, method))
 {
     return rb_method_call_with_block_kw(argc, argv, method, blockarg, RB_PASS_CALLED_KEYWORDS);
@@ -3175,7 +3157,7 @@ rb_proc_new(
     rb_block_call_func_t func,
     VALUE val)
 {
-    VALUE procval = rb_iterate(mproc, 0, func, val);
+    VALUE procval = rb_block_call(rb_mRubyVMFrozenCore, idProc, 0, 0, func, val);
     return procval;
 }
 
@@ -3201,7 +3183,7 @@ method_to_proc(VALUE method)
      *   end
      * end
      */
-    procval = rb_iterate(mlambda, 0, bmcall, method);
+    procval = rb_block_call(rb_mRubyVMFrozenCore, idLambda, 0, 0, bmcall, method);
     GetProcPtr(procval, proc);
     proc->is_from_method = 1;
     return procval;

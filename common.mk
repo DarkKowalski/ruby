@@ -1338,7 +1338,7 @@ update-bundled_gems: PHONY
 	$(Q) $(RUNRUBY) -rrubygems \
 	     $(tooldir)/update-bundled_gems.rb \
 	     "$(srcdir)/gems/bundled_gems" | \
-	"$(IFCHANGE)" "$(srcdir)/gems/bundled_gems" -
+	$(IFCHANGE) "$(srcdir)/gems/bundled_gems" -
 	git -C "$(srcdir)" diff --no-ext-diff --ignore-submodules --exit-code || \
 	git -C "$(srcdir)" commit -m "Update bundled_gems" gems/bundled_gems
 
@@ -15207,6 +15207,7 @@ vm.$(OBJEXT): $(top_srcdir)/internal/serial.h
 vm.$(OBJEXT): $(top_srcdir)/internal/static_assert.h
 vm.$(OBJEXT): $(top_srcdir)/internal/string.h
 vm.$(OBJEXT): $(top_srcdir)/internal/symbol.h
+vm.$(OBJEXT): $(top_srcdir)/internal/thread.h
 vm.$(OBJEXT): $(top_srcdir)/internal/variable.h
 vm.$(OBJEXT): $(top_srcdir)/internal/vm.h
 vm.$(OBJEXT): $(top_srcdir)/internal/warnings.h
