@@ -21,6 +21,7 @@
 #include "ruby.h"
 #include "vm_debug.h"
 #include "event_profiling.h"
+
 #ifdef HAVE_LOCALE_H
 #include <locale.h>
 #endif
