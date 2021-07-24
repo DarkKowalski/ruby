@@ -34,7 +34,7 @@ profiling_event_bucket_t *rb_profiling_event_bucket;
 static const char profiling_event_phase_str[] = {'B', 'E', 'O'};
 
 /* Internal functions */
-static inline int get_total_events()
+static inline int get_total_events(void)
 {
     int total = rb_profiling_event_bucket->system_init_event_list->tail;
     int ractors = rb_profiling_event_bucket->ractors;
@@ -48,7 +48,7 @@ static inline int get_total_events()
     return total;
 }
 
-static inline time_t microsecond_timestamp()
+static inline time_t microsecond_timestamp(void)
 {
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
@@ -57,7 +57,7 @@ static inline time_t microsecond_timestamp()
     return us;
 }
 
-static inline profiling_event_list_t *init_profiling_event_list()
+static inline profiling_event_list_t *init_profiling_event_list(void)
 {
     profiling_event_list_t *list =
         (profiling_event_list_t *)malloc(sizeof(profiling_event_list_t));
@@ -187,7 +187,7 @@ static inline void destroy_profiling_event_list(profiling_event_list_t *list)
     free(list);
 }
 
-static inline void destroy_profiling_event_bucket()
+static inline void destroy_profiling_event_bucket(void)
 {
     int ractors = rb_profiling_event_bucket->ractors;
     for (int i = 0; i < ractors; i++)
@@ -201,7 +201,7 @@ static inline void destroy_profiling_event_bucket()
     free(rb_profiling_event_bucket);
 }
 
-static inline profiling_event_bucket_t *init_profiling_event_bucket()
+static inline profiling_event_bucket_t *init_profiling_event_bucket(void)
 {
     profiling_event_bucket_t *bucket =
         (profiling_event_bucket_t *)malloc(sizeof(profiling_event_bucket_t));
@@ -307,7 +307,7 @@ debug_print_profling_event_list(const profiling_event_list_t *list)
     }
 }
 
-void debug_print_profling_event_bucket()
+void debug_print_profling_event_bucket(void)
 {
     debug_print_profling_event_list(
         rb_profiling_event_bucket->system_init_event_list);
@@ -319,7 +319,7 @@ void debug_print_profling_event_bucket()
     }
 }
 #else
-void debug_print_profling_event_bucket() {}
+void debug_print_profling_event_bucket(void) {}
 #endif
 
 /* Public functions */

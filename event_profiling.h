@@ -108,7 +108,7 @@ int  trace_profiling_event_snapshot(const char *file, const char *func,
 RUBY_SYMBOL_EXPORT_END
 
 void ractor_init_profiling_event_list(rb_ractor_t *r);
-void debug_print_profling_event_bucket();
+void debug_print_profling_event_bucket(void);
 
 #define PROFILING_EVENT_DEFAULT_FILE_NAME     __FILE__
 #define PROFILING_EVENT_DEFAULT_FUNCTION_NAME __func__
