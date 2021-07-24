@@ -17,6 +17,8 @@
 #include "ruby/encoding.h"
 #include "ruby/util.h"
 
+#include "event_profiling.h"
+
 static VALUE ruby_dln_librefs;
 
 #define IS_RBEXT(e) (strcmp((e), ".rb") == 0)
@@ -578,9 +580,11 @@ NORETURN(static void load_failed(VALUE));
 static inline void
 load_iseq_eval(rb_execution_context_t *ec, VALUE fname)
 {
+    RB_EVENT_PROFILING_BEGIN();
     const rb_iseq_t *iseq = rb_iseq_load_iseq(fname);
 
     if (!iseq) {
+        RB_EVENT_PROFILING_SNAPSHOT("iseq == NULL");
         rb_ast_t *ast;
         VALUE parser = rb_parser_new();
         rb_parser_set_context(parser, NULL, FALSE);
@@ -589,8 +593,11 @@ load_iseq_eval(rb_execution_context_t *ec, VALUE fname)
                                fname, rb_realpath_internal(Qnil, fname, 1), NULL);
         rb_ast_dispose(ast);
     }
+
     rb_exec_event_hook_script_compiled(ec, iseq, Qnil);
     rb_iseq_eval(iseq);
+
+    RB_EVENT_PROFILING_END();
 }
 
 static inline enum ruby_tag_type
@@ -861,6 +868,7 @@ typedef int (*feature_func)(const char *feature, const char *ext, int rb, int ex
 static int
 search_required(VALUE fname, volatile VALUE *path, feature_func rb_feature_p)
 {
+    RB_EVENT_PROFILING_BEGIN();
     VALUE tmp;
     char *ext, *ftptr;
     int type, ft = 0;
@@ -872,19 +880,23 @@ search_required(VALUE fname, volatile VALUE *path, feature_func rb_feature_p)
 	if (IS_RBEXT(ext)) {
 	    if (rb_feature_p(ftptr, ext, TRUE, FALSE, &loading)) {
 		if (loading) *path = rb_filesystem_str_new_cstr(loading);
+                RB_EVENT_PROFILING_END();
 		return 'r';
 	    }
             if ((tmp = rb_find_file(fname)) != 0) {
 		ext = strrchr(ftptr = RSTRING_PTR(tmp), '.');
 		if (!rb_feature_p(ftptr, ext, TRUE, TRUE, &loading) || loading)
 		    *path = tmp;
+                RB_EVENT_PROFILING_END();
 		return 'r';
 	    }
+            RB_EVENT_PROFILING_END();
 	    return 0;
 	}
 	else if (IS_SOEXT(ext)) {
 	    if (rb_feature_p(ftptr, ext, FALSE, FALSE, &loading)) {
 		if (loading) *path = rb_filesystem_str_new_cstr(loading);
+                RB_EVENT_PROFILING_END();
 		return 's';
 	    }
 	    tmp = rb_str_subseq(fname, 0, ext - RSTRING_PTR(fname));
@@ -894,6 +906,7 @@ search_required(VALUE fname, volatile VALUE *path, feature_func rb_feature_p)
 		ext = strrchr(ftptr = RSTRING_PTR(tmp), '.');
 		if (!rb_feature_p(ftptr, ext, FALSE, TRUE, &loading) || loading)
 		    *path = tmp;
+                RB_EVENT_PROFILING_END();
 		return 's';
 	    }
 #else
@@ -903,6 +916,7 @@ search_required(VALUE fname, volatile VALUE *path, feature_func rb_feature_p)
 		ext = strrchr(ftptr = RSTRING_PTR(tmp), '.');
 		if (!rb_feature_p(ftptr, ext, FALSE, TRUE, &loading) || loading)
 		    *path = tmp;
+                RB_EVENT_PROFILING_END();
 		return 's';
 	    }
 #endif
@@ -910,18 +924,21 @@ search_required(VALUE fname, volatile VALUE *path, feature_func rb_feature_p)
 	else if (IS_DLEXT(ext)) {
 	    if (rb_feature_p(ftptr, ext, FALSE, FALSE, &loading)) {
 		if (loading) *path = rb_filesystem_str_new_cstr(loading);
+                RB_EVENT_PROFILING_END();
 		return 's';
 	    }
             if ((tmp = rb_find_file(fname)) != 0) {
 		ext = strrchr(ftptr = RSTRING_PTR(tmp), '.');
 		if (!rb_feature_p(ftptr, ext, FALSE, TRUE, &loading) || loading)
 		    *path = tmp;
+                RB_EVENT_PROFILING_END();
 		return 's';
 	    }
 	}
     }
     else if ((ft = rb_feature_p(ftptr, 0, FALSE, FALSE, &loading)) == 'r') {
 	if (loading) *path = rb_filesystem_str_new_cstr(loading);
+        RB_EVENT_PROFILING_END();
 	return 'r';
     }
     tmp = fname;
@@ -931,6 +948,7 @@ search_required(VALUE fname, volatile VALUE *path, feature_func rb_feature_p)
 	if (ft)
 	    goto statically_linked;
 	ftptr = RSTRING_PTR(tmp);
+        RB_EVENT_PROFILING_END();
 	return rb_feature_p(ftptr, 0, FALSE, TRUE, 0);
 
       default:
@@ -944,10 +962,12 @@ search_required(VALUE fname, volatile VALUE *path, feature_func rb_feature_p)
 	    break;
 	*path = tmp;
     }
+    RB_EVENT_PROFILING_END();
     return type ? 's' : 'r';
 
   statically_linked:
     if (loading) *path = rb_filesystem_str_new_cstr(loading);
+    RB_EVENT_PROFILING_END();
     return ft;
 }
 
@@ -1025,6 +1045,7 @@ rb_ext_ractor_safe(bool flag)
 static int
 require_internal(rb_execution_context_t *ec, VALUE fname, int exception)
 {
+   RB_EVENT_PROFILING_BEGIN();
     volatile int result = -1;
     rb_thread_t *th = rb_ec_thread_ptr(ec);
     volatile const struct {
@@ -1119,6 +1140,7 @@ require_internal(rb_execution_context_t *ec, VALUE fname, int exception)
 
     RUBY_DTRACE_HOOK(REQUIRE_RETURN, RSTRING_PTR(fname));
 
+    RB_EVENT_PROFILING_END();
     return result;
 }
 
@@ -1143,6 +1165,8 @@ ruby_require_internal(const char *fname, unsigned int len)
 VALUE
 rb_require_string(VALUE fname)
 {
+    RB_EVENT_PROFILING_BEGIN();
+
     rb_execution_context_t *ec = GET_EC();
     int result = require_internal(ec, fname, 1);
 
@@ -1153,7 +1177,10 @@ rb_require_string(VALUE fname)
 	load_failed(fname);
     }
 
-    return result ? Qtrue : Qfalse;
+    VALUE ret = result ? Qtrue : Qfalse;
+
+    RB_EVENT_PROFILING_END();
+    return ret;
 }
 
 VALUE

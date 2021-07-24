@@ -47,6 +47,8 @@
 #endif
 #include "probes_helper.h"
 
+#include "event_profiling.h"
+
 VALUE rb_str_concat_literals(size_t, const VALUE*);
 
 /* :FIXME: This #ifdef is because we build pch in case of mswin and
@@ -2405,10 +2407,12 @@ vm_exec_handle_exception(rb_execution_context_t *ec, enum ruby_tag_type state,
 VALUE
 rb_iseq_eval(const rb_iseq_t *iseq)
 {
+    RB_EVENT_PROFILING_BEGIN();
     rb_execution_context_t *ec = GET_EC();
     VALUE val;
     vm_set_top_stack(ec, iseq);
     val = vm_exec(ec, true);
+    RB_EVENT_PROFILING_END();
     return val;
 }
 

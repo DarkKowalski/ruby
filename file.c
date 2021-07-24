@@ -12,6 +12,7 @@
 **********************************************************************/
 
 #include "ruby/internal/config.h"
+#include "event_profiling.h"
 
 #ifdef _WIN32
 # include "missing/file.h"
@@ -4481,9 +4482,12 @@ rb_check_realpath_internal(VALUE basedir, VALUE path, rb_encoding *origenc, enum
 VALUE
 rb_realpath_internal(VALUE basedir, VALUE path, int strict)
 {
+    RB_EVENT_PROFILING_BEGIN();
     const enum rb_realpath_mode mode =
 	strict ? RB_REALPATH_STRICT : RB_REALPATH_DIR;
-    return rb_check_realpath_internal(basedir, path, rb_enc_get(path), mode);
+    VALUE ret = rb_check_realpath_internal(basedir, path, rb_enc_get(path), mode);
+    RB_EVENT_PROFILING_END();
+    return ret;
 }
 
 VALUE
@@ -6384,12 +6388,17 @@ copy_path_class(VALUE path, VALUE orig)
 int
 rb_find_file_ext(VALUE *filep, const char *const *ext)
 {
+    RB_EVENT_PROFILING_BEGIN();
     const char *f = StringValueCStr(*filep);
     VALUE fname = *filep, load_path, tmp;
     long i, j, fnlen;
     int expanded = 0;
 
-    if (!ext[0]) return 0;
+    if (!ext[0]) {
+            RB_EVENT_PROFILING_END();
+            return 0;
+    }
+
 
     if (f[0] == '~') {
 	fname = file_expand_path_1(fname);
@@ -6405,15 +6414,20 @@ rb_find_file_ext(VALUE *filep, const char *const *ext)
 	    rb_str_cat2(fname, ext[i]);
 	    if (rb_file_load_ok(RSTRING_PTR(fname))) {
 		*filep = copy_path_class(fname, *filep);
+                RB_EVENT_PROFILING_END();
 		return (int)(i+1);
 	    }
 	    rb_str_set_len(fname, fnlen);
 	}
+        RB_EVENT_PROFILING_END();
 	return 0;
     }
 
     RB_GC_GUARD(load_path) = rb_get_expanded_load_path();
-    if (!load_path) return 0;
+    if (!load_path){
+            RB_EVENT_PROFILING_END();
+            return 0;
+    }
 
     fname = rb_str_dup(*filep);
     RBASIC_CLEAR_CLASS(fname);
@@ -6430,6 +6444,7 @@ rb_find_file_ext(VALUE *filep, const char *const *ext)
 	    rb_file_expand_path_internal(fname, str, 0, 0, tmp);
 	    if (rb_file_load_ok(RSTRING_PTR(tmp))) {
 		*filep = copy_path_class(tmp, *filep);
+                RB_EVENT_PROFILING_END();
 		return (int)(j+1);
 	    }
 	}
@@ -6437,6 +6452,7 @@ rb_find_file_ext(VALUE *filep, const char *const *ext)
     }
     rb_str_resize(tmp, 0);
     RB_GC_GUARD(load_path);
+    RB_EVENT_PROFILING_END();
     return 0;
 }
 

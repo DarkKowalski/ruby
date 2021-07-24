@@ -43,6 +43,8 @@
 #include "insns.inc"
 #include "insns_info.inc"
 
+#include "event_profiling.h"
+
 VALUE rb_cISeq;
 static VALUE iseqw_new(const rb_iseq_t *iseq);
 static const rb_iseq_t *iseqw_check(VALUE iseqw);
@@ -829,6 +831,7 @@ ast_line_count(const rb_ast_body_t *ast)
 rb_iseq_t *
 rb_iseq_new_top(const rb_ast_body_t *ast, VALUE name, VALUE path, VALUE realpath, const rb_iseq_t *parent)
 {
+    RB_EVENT_PROFILING_BEGIN();
     VALUE coverages = rb_get_coverages();
     if (RTEST(coverages)) {
         int line_count = ast_line_count(ast);
@@ -839,8 +842,11 @@ rb_iseq_new_top(const rb_ast_body_t *ast, VALUE name, VALUE path, VALUE realpath
         }
     }
 
-    return rb_iseq_new_with_opt(ast, name, path, realpath, INT2FIX(0), parent, 0,
+    rb_iseq_t* ret = rb_iseq_new_with_opt(ast, name, path, realpath, INT2FIX(0), parent, 0,
                                 ISEQ_TYPE_TOP, &COMPILE_OPTION_DEFAULT);
+
+    RB_EVENT_PROFILING_END();
+    return ret;
 }
 
 rb_iseq_t *
@@ -920,12 +926,16 @@ rb_iseq_new_with_callback(
 const rb_iseq_t *
 rb_iseq_load_iseq(VALUE fname)
 {
+    RB_EVENT_PROFILING_BEGIN();
     VALUE iseqv = rb_check_funcall(rb_cISeq, rb_intern("load_iseq"), 1, &fname);
 
     if (!SPECIAL_CONST_P(iseqv) && RBASIC_CLASS(iseqv) == rb_cISeq) {
-	return  iseqw_check(iseqv);
+	const rb_iseq_t* ret = iseqw_check(iseqv);
+        RB_EVENT_PROFILING_END();
+        return ret;
     }
 
+    RB_EVENT_PROFILING_END();
     return NULL;
 }
 

@@ -2360,9 +2360,12 @@ rb_load_file_str(VALUE fname_v)
 void *
 rb_parser_load_file(VALUE parser, VALUE fname_v)
 {
+    RB_EVENT_PROFILING_BEGIN();
     ruby_cmdline_options_t opt;
     VALUE f = open_load_file(fname_v, &cmdline_options_init(&opt)->xflag);
-    return load_file(parser, fname_v, f, 0, &opt);
+    rb_ast_t* ret = load_file(parser, fname_v, f, 0, &opt);
+    RB_EVENT_PROFILING_END();
+    return ret;
 }
 
 /*
