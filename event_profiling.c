@@ -25,10 +25,10 @@ pid_t gettid(void) { return syscall(SYS_gettid); }
     } while (0)
 
 /* Global config */
-event_profiling_config_t *rb_event_profiling_config;
+static event_profiling_config_t *rb_event_profiling_config;
 
 /* Global bucket */
-profiling_event_bucket_t *rb_profiling_event_bucket;
+static profiling_event_bucket_t *rb_profiling_event_bucket;
 
 /* Phase strings */
 static const char profiling_event_phase_str[] = {'B', 'E', 'O'};

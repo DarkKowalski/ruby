@@ -85,12 +85,6 @@ typedef struct profiling_event_bucket
     int                      ractors;
 } profiling_event_bucket_t;
 
-/* Global configuration */
-extern event_profiling_config_t *rb_event_profiling_config;
-
-/* Global bucket */
-extern profiling_event_bucket_t *rb_profiling_event_bucket;
-
 RUBY_SYMBOL_EXPORT_BEGIN
 event_profiling_config_t *setup_event_profiling(const int max_ractors,
                                                 const int max_ractor_events,
@@ -108,6 +102,7 @@ int  trace_profiling_event_snapshot(const char *file, const char *func,
 RUBY_SYMBOL_EXPORT_END
 
 void ractor_init_profiling_event_list(rb_ractor_t *r);
+
 void debug_print_profling_event_bucket(void);
 
 #define PROFILING_EVENT_DEFAULT_FILE_NAME     __FILE__
