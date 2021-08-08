@@ -51,6 +51,16 @@ microsecond_timestamp(void)
     return us;
 }
 
+static inline time_t
+nanosecond_timestamp(void)
+{
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    time_t ns = t.tv_sec * 1E9 + t.tv_nsec;
+
+    return ns;
+}
+
 static inline rb_event_profiling_list_t *
 init_profiling_event_list(void)
 {
@@ -314,7 +324,7 @@ rb_event_profiling_begin(const char *file, const char *func, int line,
     event->tid = gettid();
     event->snapshot_reason = NULL;
     event->customized_name = customized_name;
-    event->timestamp = microsecond_timestamp();
+    event->timestamp = nanosecond_timestamp(); // microsecond_timestamp()
 
     return id;
 }
@@ -337,7 +347,7 @@ rb_event_profiling_end(const char *file, const char *func, int line,
     event->tid = begin->tid;
     event->snapshot_reason = NULL;
     event->customized_name = customized_name;
-    event->timestamp = microsecond_timestamp();
+    event->timestamp = nanosecond_timestamp(); // microsecond_timestamp()
 
     return id;
 }
@@ -358,7 +368,7 @@ rb_event_profiling_exception(bool system)
         event->pid = begin->pid;
         event->tid = begin->tid;
         event->snapshot_reason = NULL;
-        event->timestamp = microsecond_timestamp();
+        event->timestamp = nanosecond_timestamp(); // microsecond_timestamp()
     }
 }
 
@@ -377,7 +387,7 @@ rb_event_profiling_snapshot(const char *file, const char *func, int line,
     event->pid = getpid();
     event->tid = gettid();
     event->snapshot_reason = reason;
-    event->timestamp = microsecond_timestamp();
+    event->timestamp = nanosecond_timestamp(); // microsecond_timestamp()
 
     return id;
 }

@@ -143,6 +143,32 @@ __extension__({ \
 # include "ruby/backward.h"
 #endif
 
+/* Hack! */
+int rb_event_profiling_begin(const char *file, const char *func, int line,
+                             const char *customized_name, bool system);
+int rb_event_profiling_end(const char *file, const char *func, int line,
+                           const char *customized_name, bool system);
+int rb_event_profiling_snapshot(const char *file, const char *func, int line,
+                                const char *reason, bool system);
+
+#define RB_EVENT_PROFILING_DEFAULT_FILE_NAME     __FILE__
+#define RB_EVENT_PROFILING_DEFAULT_FUNCTION_NAME __func__
+#define RB_EVENT_PROFILING_DEFAULT_LINE_NUMBER   __LINE__
+#define RB_EVENT_PROFILING_DEFAULT_INFO          __FILE__, __func__, __LINE__, NULL
+#define RB_EVENT_PROFILING_NO_DEFAULT_INFO       NULL, NULL, 0
+
+/* Per-ractor profiling */
+#define RB_EVENT_PROFILING_BEGIN_DEFAULT()                                     \
+    rb_event_profiling_begin(RB_EVENT_PROFILING_DEFAULT_INFO, false)
+#define RB_EVENT_PROFILING_END_DEFAULT()                                       \
+    rb_event_profiling_end(RB_EVENT_PROFILING_DEFAULT_INFO, false)
+#define RB_EVENT_PROFILING_BEGIN(name)                                         \
+    rb_event_profiling_begin(RB_EVENT_PROFILING_NO_DEFAULT_INFO, name, false)
+#define RB_EVENT_PROFILING_END(name)                                           \
+    rb_event_profiling_end(RB_EVENT_PROFILING_NO_DEFAULT_INFO, name, false)
+#define RB_EVENT_PROFILING_SNAPSHOT(reason)                                    \
+    rb_event_profiling_snapshot(RB_EVENT_PROFILING_DEFAULT_INFO, reason, false)
+
 RBIMPL_SYMBOL_EXPORT_END()
 
 #endif /* RUBY_RUBY_H */
