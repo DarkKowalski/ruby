@@ -16,6 +16,7 @@
 #include "variable.h"
 #include "gc.h"
 #include "transient_heap.h"
+#include "event_profiling.h"
 
 VALUE rb_cRactor;
 
@@ -1584,6 +1585,9 @@ rb_ractor_main_setup(rb_vm_t *vm, rb_ractor_t *r, rb_thread_t *th)
     r->pub.self = TypedData_Wrap_Struct(rb_cRactor, &ractor_data_type, r);
     FL_SET_RAW(r->pub.self, RUBY_FL_SHAREABLE);
     ractor_init(r, Qnil, Qnil);
+
+    RB_EVENT_PROFILING_RACTOR_INIT(r);
+
     r->threads.main = th;
     rb_ractor_living_threads_insert(r, th);
 }
@@ -1602,6 +1606,8 @@ ractor_create(rb_execution_context_t *ec, VALUE self, VALUE loc, VALUE name, VAL
     rb_ractor_t *cr = rb_ec_ractor_ptr(ec);
     r->verbose = cr->verbose;
     r->debug = cr->debug;
+
+    RB_EVENT_PROFILING_RACTOR_INIT(r);
 
     rb_thread_create_ractor(r, args, block);
 
