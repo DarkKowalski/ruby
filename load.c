@@ -874,6 +874,34 @@ load_unlock(const char *ftptr, int done)
  *
  */
 
+/* Let's hack */
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <errno.h>
+#include <string.h>
+#include <stdarg.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include "iseq.h"
+#include <unistd.h>
+
+VALUE rb_f_require_hack(VALUE obj, VALUE fname, VALUE feature, VALUE offset, VALUE size)
+{
+    const char *file_name = rb_string_value_cstr(&fname);
+    int fd = open(file_name, O_RDONLY);
+    // struct stat s;
+    // int status = fstat(fd, &s); // check it
+    // size_t size = s.st_size;
+
+    const char * mapped = mmap(NULL, NUM2SIZET(size), PROT_READ, MAP_PRIVATE, fd, NUM2LONG(offset));
+    rb_iseq_eval(rb_iseq_ibf_load_bytes(mapped, size));
+    // rb_provide(rb_str_to_cstr(rb_str_concat(fname, feature)));
+
+    return Qnil;
+}
+
 VALUE
 rb_f_require(VALUE obj, VALUE fname)
 {
@@ -1358,6 +1386,7 @@ Init_load(void)
     vm->loaded_features_snapshot = rb_ary_tmp_new(0);
     vm->loaded_features_index = st_init_numtable();
 
+    rb_define_global_function("require_hack", rb_f_require_hack, 4);
     rb_define_global_function("load", rb_f_load, -1);
     rb_define_global_function("require", rb_f_require, 1);
     rb_define_global_function("require_relative", rb_f_require_relative, 1);
